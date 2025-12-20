@@ -36,6 +36,21 @@
 *.exe
 *.out
 *.app
+*.run
+
+# Build artifacts
+/build/
+/cmake-build-*/
+/CMakeFiles/
+/CMakeCache.txt
+/Makefile
+/compile_commands.json
+*.dSYM/
+
+# macOS
+.DS_Store
 
 # debug information files
 *.dwo
+
+.vscode
