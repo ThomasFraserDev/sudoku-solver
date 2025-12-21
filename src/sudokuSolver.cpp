@@ -4,11 +4,11 @@
 using namespace std;
 
 /** 
-    Reads a Sudoku puzzle from a file and populates a 9x9 board, where:
-        - Digits 1-9 represent filled cells
-        - 0s or spaces represent blank cells
-    @param fname The name/path of the file containing the puzzle
-    @param board The 9x9 puzzle board
+ * Reads a Sudoku puzzle from a file and populates a 9x9 board, where:
+ *  - Digits 1-9 represent filled cells
+ *  - 0s or spaces represent blank cells
+ * @param fname The name/path of the file containing the puzzle
+ * @param board The 9x9 puzzle board
  */
 void readPuzzle(string fname, int board[9][9]) {
     ifstream f(fname); // Read from the puzzle file
@@ -46,8 +46,8 @@ void readPuzzle(string fname, int board[9][9]) {
 };
 
 /** 
-    Iterates through the board, checking for an empty square (0) and returning its location if found
-    @param board The 9x9 puzzle board
+ * Iterates through the board, checking for an empty square (0) and returning its location if found
+ * @param board The 9x9 puzzle board
  */
 pair<int, int> findEmpty(int board[9][9]) {
     for (int i = 0; i < 9; i++) { // for each row
@@ -58,6 +58,33 @@ pair<int, int> findEmpty(int board[9][9]) {
         }
     }
     return {-1, -1}; // return impossible location if none found
+}
+
+/**
+ * Checks if a specified value is valid at a given position, by checking the position's row, column and 3x3 subsqaure to see if the value is already there
+ * @param board The 9x9 puzzle board
+ * @param row The row of the position being checked
+ * @param col The column of the position being checked
+ * @param value The value being checked
+ */
+bool isValid(int board[9][9], int row, int col, int value) {
+    for (int i=0; i < 9; i++) {
+        if (value == board[i][col] or value == board[row][i]) { // If the value is already within the position's row or column
+            return false;
+        }
+    }
+
+    int boxRow = (row % 3) * 3; // Calculates the row of the top left cell of the sub-square containing (row, col)
+    int boxCol = (col % 3) * 3; // Calculates the column of the top left cell of the sub-square containing (row, col)
+
+    for (int r = boxRow; r < boxRow + 3; r++) {
+        for (int c = boxCol; c < boxCol + 3; c++) {
+            if (value == board[r][c]) { // If the value is already within the subsquare
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 int main() {
