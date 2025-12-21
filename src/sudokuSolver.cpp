@@ -45,6 +45,21 @@ void readPuzzle(string fname, int board[9][9]) {
     }
 };
 
+/** 
+    Iterates through the board, checking for an empty square (0) and returning its location if found
+    @param board The 9x9 puzzle board
+ */
+pair<int, int> findEmpty(int board[9][9]) {
+    for (int i = 0; i < 9; i++) { // for each row
+        for (int j = 0; j < 9; j++) { // for each column
+            if (board[i][j] == 0) {
+                return {i, j};
+            }
+        }
+    }
+    return {-1, -1}; // return impossible location if none found
+}
+
 int main() {
     return 0;
 }
