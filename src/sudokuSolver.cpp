@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <vector>
 using namespace std;
 
 /** 
@@ -85,6 +86,38 @@ bool isValid(int board[9][9], int row, int col, int value) {
         }
     }
     return true;
+}
+
+/**
+ * Recursively solves the sudoku using backtracking with pruning, by recursively checking each valid value within each position and backtracking if none exist.
+ * Returns true once the board is solved, and returns false if the board is unsolvable.
+ * @param board The 9x9 puzzle board
+ */
+bool solve(int board[9][9]) {
+    pair<int, int> emptyCell = findEmpty(board);
+    if (emptyCell == make_pair(-1, -1)) {
+        return true; // If no empty cells remain, assume the board to be solved
+    }
+   int row = emptyCell.first;
+   int col = emptyCell.second;
+
+   vector<int> validNums;
+   for (int i = 1; i < 10; i++) { // Get a list of all possible valid values at the current empty cell
+        if (isValid(board, row, col, i)) {
+           validNums.push_back(i);
+       }
+   }
+
+   for (int i=0;i < validNums.size(); i++) { // Recursively place valid numbers into empty positions until the board is solved
+        board[row][col] = validNums[i];
+        if (solve(board)) {
+            return true;
+        }
+        else {
+            board[row][col] = 0;
+        }
+   }
+   return false;
 }
 
 int main() {
