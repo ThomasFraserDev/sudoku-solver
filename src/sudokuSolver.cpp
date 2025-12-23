@@ -39,10 +39,10 @@ void readPuzzle(string fname, int board[9][9]) {
             row++;
         }
         f.close();
-        cout << "Puzzle read successfully.";
+        cout << "Puzzle read successfully.\n";
     }
     catch (const std::exception &e) {
-        cout << "Something went wrong when reading the file, please try again.";
+        cout << "Something went wrong when reading the file, please try again. ";
     }
 };
 
@@ -126,23 +126,34 @@ bool solve(int board[9][9]) {
 */
 void printBoard(int board[9][9]) {
     for (int i = 0; i < 9 ; i++) {
-        if (i % 3 == 0 and i != 0) {
-            cout << "- - - - - - - - - - - -";
+        if (i % 3 == 0 && i != 0) {
+            cout << "- - - - - - - - - - -\n";
         }
         for (int j = 0; j < 9; j++) {
-            if (j % 3 == 0 and j != 0) {
-                cout << " | ";
+            if (j % 3 == 0 && j != 0) {
+                cout << "| ";
             }
-            if (j == 8) {
-                cout << board[i][j];
+            cout << board[i][j];
+            if (j != 8) {
+                cout << " ";
             }
-            else {
-                cout << board[i][j] + " ";
-            } 
         }
+        cout << "\n";
     }
 }
 
 int main() {
+    int board[9][9] = {};
+    string fileName;
+    cout << "Enter file name:";
+    cin >> fileName;
+    readPuzzle("puzzles/" + fileName, board);
+    if (solve(board)) {
+        cout << "Solved Board:\n";
+        printBoard(board);
+    }
+    else {
+        cout << "No solution exists for the entered sudoku.";
+    }
     return 0;
 }
