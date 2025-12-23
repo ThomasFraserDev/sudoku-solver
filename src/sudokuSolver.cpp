@@ -10,7 +10,7 @@ using namespace std;
  *  - 0s or spaces represent blank cells
  * @param fname The name/path of the file containing the puzzle
  * @param board The 9x9 puzzle board
- */
+*/
 void readPuzzle(string fname, int board[9][9]) {
     ifstream f(fname); // Read from the puzzle file
     try {
@@ -49,7 +49,7 @@ void readPuzzle(string fname, int board[9][9]) {
 /** 
  * Iterates through the board, checking for an empty square (0) and returning its location if found
  * @param board The 9x9 puzzle board
- */
+*/
 pair<int, int> findEmpty(int board[9][9]) {
     for (int i = 0; i < 9; i++) { // for each row
         for (int j = 0; j < 9; j++) { // for each column
@@ -67,7 +67,7 @@ pair<int, int> findEmpty(int board[9][9]) {
  * @param row The row of the position being checked
  * @param col The column of the position being checked
  * @param value The value being checked
- */
+*/
 bool isValid(int board[9][9], int row, int col, int value) {
     for (int i=0; i < 9; i++) {
         if (value == board[i][col] or value == board[row][i]) { // If the value is already within the position's row or column
@@ -75,8 +75,8 @@ bool isValid(int board[9][9], int row, int col, int value) {
         }
     }
 
-    int boxRow = (row % 3) * 3; // Calculates the row of the top left cell of the sub-square containing (row, col)
-    int boxCol = (col % 3) * 3; // Calculates the column of the top left cell of the sub-square containing (row, col)
+    int boxRow = (row / 3) * 3; // Calculates the row of the top left cell of the sub-square containing (row, col)
+    int boxCol = (col / 3) * 3; // Calculates the column of the top left cell of the sub-square containing (row, col)
 
     for (int r = boxRow; r < boxRow + 3; r++) {
         for (int c = boxCol; c < boxCol + 3; c++) {
@@ -92,23 +92,23 @@ bool isValid(int board[9][9], int row, int col, int value) {
  * Recursively solves the sudoku using backtracking with pruning, by recursively checking each valid value within each position and backtracking if none exist.
  * Returns true once the board is solved, and returns false if the board is unsolvable.
  * @param board The 9x9 puzzle board
- */
+*/
 bool solve(int board[9][9]) {
     pair<int, int> emptyCell = findEmpty(board);
     if (emptyCell == make_pair(-1, -1)) {
         return true; // If no empty cells remain, assume the board to be solved
     }
-   int row = emptyCell.first;
-   int col = emptyCell.second;
+    int row = emptyCell.first;
+    int col = emptyCell.second;
 
-   vector<int> validNums;
-   for (int i = 1; i < 10; i++) { // Get a list of all possible valid values at the current empty cell
+    vector<int> validNums;
+    for (int i = 1; i < 10; i++) { // Get a list of all possible valid values at the current empty cell
         if (isValid(board, row, col, i)) {
-           validNums.push_back(i);
-       }
-   }
+            validNums.push_back(i);
+        }
+    }
 
-   for (int i=0;i < validNums.size(); i++) { // Recursively place valid numbers into empty positions until the board is solved
+    for (int i=0;i < validNums.size(); i++) { // Recursively place valid numbers into empty positions until the board is solved
         board[row][col] = validNums[i];
         if (solve(board)) {
             return true;
@@ -116,8 +116,31 @@ bool solve(int board[9][9]) {
         else {
             board[row][col] = 0;
         }
-   }
-   return false;
+    }
+    return false;
+}
+
+/** 
+ * Prints the solved puzzle, with subsquares separated by -s and |s 
+ * @param board The 9x9 puzzle board
+*/
+void printBoard(int board[9][9]) {
+    for (int i = 0; i < 9 ; i++) {
+        if (i % 3 == 0 and i != 0) {
+            cout << "- - - - - - - - - - - -";
+        }
+        for (int j = 0; j < 9; j++) {
+            if (j % 3 == 0 and j != 0) {
+                cout << " | ";
+            }
+            if (j == 8) {
+                cout << board[i][j];
+            }
+            else {
+                cout << board[i][j] + " ";
+            } 
+        }
+    }
 }
 
 int main() {
