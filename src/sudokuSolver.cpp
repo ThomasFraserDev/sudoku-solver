@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <chrono>
 using namespace std;
 
 /** 
@@ -93,13 +94,14 @@ bool isValid(int board[9][9], int row, int col, int value) {
  * Returns true once the board is solved, and returns false if the board is unsolvable.
  * @param board The 9x9 puzzle board
 */
-bool solve(int board[9][9]) {
+bool solve(int board[9][9], int &steps, int &backtracks) {
     pair<int, int> emptyCell = findEmpty(board);
     if (emptyCell == make_pair(-1, -1)) {
         return true; // If no empty cells remain, assume the board to be solved
     }
     int row = emptyCell.first;
     int col = emptyCell.second;
+    steps += 1;
 
     vector<int> validNums;
     for (int i = 1; i < 10; i++) { // Get a list of all possible valid values at the current empty cell
@@ -110,10 +112,11 @@ bool solve(int board[9][9]) {
 
     for (int i=0;i < validNums.size(); i++) { // Recursively place valid numbers into empty positions until the board is solved
         board[row][col] = validNums[i];
-        if (solve(board)) {
+        if (solve(board, steps, backtracks)) {
             return true;
         }
         else {
+            backtracks += 1;
             board[row][col] = 0;
         }
     }
@@ -145,15 +148,25 @@ void printBoard(int board[9][9]) {
 int main() {
     int board[9][9] = {};
     string fileName;
-    cout << "Enter file name:";
+    cout << "Enter file name: ";
     cin >> fileName;
     readPuzzle("puzzles/" + fileName, board);
-    if (solve(board)) {
+    int steps = 0;
+    int backtracks = 0;
+    auto start = chrono::steady_clock::now();
+    bool solved = solve(board, steps, backtracks);
+    auto end = chrono::steady_clock::now();
+    auto elapsed_ms = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+    if (solved) {
         cout << "Solved Board:\n";
         printBoard(board);
+        cout << "Steps: " << steps << "\n";
+        cout << "Backtracks: " << backtracks << "\n";
+        cout << "Runtime: " << elapsed_ms << " ms\n";
     }
     else {
-        cout << "No solution exists for the entered sudoku.";
+        cout << "No solution exists for the entered sudoku.\n";
+        cout << "Runtime: " << elapsed_ms << "ms\n";
     }
     return 0;
 }
