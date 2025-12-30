@@ -93,6 +93,8 @@ bool isValid(int board[9][9], int row, int col, int value) {
  * Recursively solves the sudoku using backtracking with pruning, by recursively checking each valid value within each position and backtracking if none exist.
  * Returns true once the board is solved, and returns false if the board is unsolvable.
  * @param board The 9x9 puzzle board
+ * @param steps The running total of steps used to solve the puzzle
+ * @param backtracks The running total of backtracks used when solving the puzzle
 */
 bool solve(int board[9][9], int &steps, int &backtracks) {
     pair<int, int> emptyCell = findEmpty(board);
