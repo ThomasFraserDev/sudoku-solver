@@ -90,13 +90,37 @@ bool isValid(int board[9][9], int row, int col, int value) {
 }
 
 /**
+ * Checks if any empty cells on the board have no possible remaining values
+ * @param board The 9x9 puzzle board
+ */
+bool hasFuture(int board[9][9]) {
+    for(int i = 0; i < 9; i++) {
+        for(int j = 0; j < 9; j++) {
+            if (board[i][j] != 0) {
+                continue;
+            }
+            bool anyVal = false;
+            for (int v = 1; v < 10 ; v++) {
+                if (isValid(board, i, j, v)) {
+                    anyVal = true;
+                }
+            }
+            if (anyVal == false) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/**
  * Recursively solves the sudoku using backtracking with pruning, by recursively checking each valid value within each position and backtracking if none exist.
  * Returns true once the board is solved, and returns false if the board is unsolvable.
  * @param board The 9x9 puzzle board
  * @param steps The running total of steps used to solve the puzzle
  * @param backtracks The running total of backtracks used when solving the puzzle
 */
-bool solve(int board[9][9], int &steps, int &backtracks) {
+bool pruning(int board[9][9], int &steps, int &backtracks) {
     pair<int, int> emptyCell = findEmpty(board);
     if (emptyCell == make_pair(-1, -1)) {
         return true; // If no empty cells remain, assume the board to be solved
@@ -112,9 +136,50 @@ bool solve(int board[9][9], int &steps, int &backtracks) {
         }
     }
 
-    for (int i=0;i < validNums.size(); i++) { // Recursively place valid numbers into empty positions until the board is solved
+    for (int i=0; i < validNums.size(); i++) { // Recursively place valid numbers into empty positions until the board is solved
         board[row][col] = validNums[i];
-        if (solve(board, steps, backtracks)) {
+        if (pruning(board, steps, backtracks)) {
+            return true;
+        }
+        else {
+            backtracks += 1;
+            board[row][col] = 0;
+        }
+    }
+    return false;
+}
+
+/**
+ * Recursively solves the sudoku using forward checking, by placing a valid value within in a cell then checking if doing so elimates all valid values for any other cells
+ * Returns true once the board is solved, and returns false if the board is unsolvable.
+ * @param board The 9x9 puzzle board
+ * @param steps The running total of steps used to solve the puzzle
+ * @param backtracks The running total of backtracks used when solving the puzzle
+*/
+bool forwardChecking(int board[9][9], int &steps, int &backtracks) {
+    pair<int, int> emptyCell = findEmpty(board);
+    if (emptyCell == make_pair(-1, -1)) {
+        return true; // If no empty cells remain, assume the board to be solved
+    }
+    int row = emptyCell.first;
+    int col = emptyCell.second;
+    steps += 1;
+
+    vector<int> validNums;
+    for (int i = 1; i < 10; i++) { // Get a list of all possible valid values at the current empty cell
+        if (isValid(board, row, col, i)) {
+            validNums.push_back(i);
+        }
+    }
+
+    for(int i = 0; i < validNums.size(); i++) { // Recursively place valid numbers into empty positions until the board is solved
+        board[row][col] = validNums[i];
+        if (!hasFuture(board)) { // If placing a value into this cell eliminates all possible values for any other cell, backtrack
+            board[row][col] = 0;
+            backtracks += 1;
+            continue;
+        }
+        if (forwardChecking(board, steps, backtracks)) {
             return true;
         }
         else {
@@ -149,14 +214,23 @@ void printBoard(int board[9][9]) {
 
 int main() {
     int board[9][9] = {};
+    bool solved = false;
     string fileName;
     cout << "Enter file name: ";
     cin >> fileName;
     readPuzzle("puzzles/" + fileName, board);
     int steps = 0;
     int backtracks = 0;
+    int method;
+    cout << "Select an approach: \n [1] Backtracking with pruning \n [2] Backtracking with forward checking \n";
+    cin >> method;
     auto start = chrono::steady_clock::now();
-    bool solved = solve(board, steps, backtracks);
+    if (method == 1) {
+        bool solved = pruning(board, steps, backtracks);
+    }
+    else if (method == 2) {
+        bool solved = forwardChecking(board, steps, backtracks);
+    }
     auto end = chrono::steady_clock::now();
     auto elapsed_ms = chrono::duration_cast<chrono::milliseconds>(end - start).count();
     if (solved) {
