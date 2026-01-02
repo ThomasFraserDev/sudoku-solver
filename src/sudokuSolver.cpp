@@ -47,21 +47,6 @@ void readPuzzle(string fname, int board[9][9]) {
     }
 };
 
-/** 
- * Iterates through the board, checking for an empty square (0) and returning its location if found
- * @param board The 9x9 puzzle board
-*/
-pair<int, int> findEmpty(int board[9][9]) {
-    for (int i = 0; i < 9; i++) { // for each row
-        for (int j = 0; j < 9; j++) { // for each column
-            if (board[i][j] == 0) {
-                return {i, j};
-            }
-        }
-    }
-    return {-1, -1}; // return impossible location if none found
-}
-
 /**
  * Checks if a specified value is valid at a given position, by checking the position's row, column and 3x3 subsqaure to see if the value is already there
  * @param board The 9x9 puzzle board
@@ -87,6 +72,52 @@ bool isValid(int board[9][9], int row, int col, int value) {
         }
     }
     return true;
+}
+
+/** 
+ * Iterates through the board, checking for an empty square (0) and returning its location if found
+ * @param board The 9x9 puzzle board
+*/
+pair<int, int> findEmpty(int board[9][9]) {
+    for (int i = 0; i < 9; i++) { // for each row
+        for (int j = 0; j < 9; j++) { // for each column
+            if (board[i][j] == 0) {
+                return {i, j};
+            }
+        }
+    }
+    return {-1, -1}; // return impossible location if none found
+}
+
+/**
+ * Iterates through the board, and uses the Minimum Remaining Value heuristic to determine the next empty cell to be filled
+ * The function iterates through empty cells on the board, and returns the position of the one with the least remaining valid values
+ * @param board The 9x9 puzzle board
+ */
+pair<int, int> findEmptyMRV(int board[9][9]) {
+    int highest = 10; // Default best number of possible values
+    pair<int, int> cell = {-1, -1};
+    for (int i = 0; i < 9; i++) {
+        for (int j = 0; j < 9; j++) {
+            if (board[i][j] != 0) { // Skip filled cells
+                continue;
+            }
+            vector<int> validNums;
+            for (int k = 1; k < 10; k++) { // Get a list of all possible valid values at the current empty cell
+                if (isValid(board, i, j, k)) {
+                    validNums.push_back(k);
+                }
+            }
+            if (validNums.size() < highest) {
+                highest = validNums.size();
+                cell = {i, j};
+                if (highest == 0 or highest == 1) { // Exit early if a dead end or the lowest possible amount of valid values is found
+                    return cell;
+                }
+            }
+        }
+    }
+    return cell;
 }
 
 /**
@@ -120,8 +151,8 @@ bool hasFuture(int board[9][9]) {
  * @param steps The running total of steps used to solve the puzzle
  * @param backtracks The running total of backtracks used when solving the puzzle
 */
-bool pruning(int board[9][9], int &steps, int &backtracks) {
-    pair<int, int> emptyCell = findEmpty(board);
+bool pruning(int board[9][9], int &steps, int &backtracks, function<pair<int, int>(int[9][9])> nextEmpty) {
+    pair<int, int> emptyCell = nextEmpty(board);
     if (emptyCell == make_pair(-1, -1)) {
         return true; // If no empty cells remain, assume the board to be solved
     }
@@ -138,7 +169,7 @@ bool pruning(int board[9][9], int &steps, int &backtracks) {
 
     for (int i=0; i < validNums.size(); i++) { // Recursively place valid numbers into empty positions until the board is solved
         board[row][col] = validNums[i];
-        if (pruning(board, steps, backtracks)) {
+        if (pruning(board, steps, backtracks, nextEmpty)) {
             return true;
         }
         else {
@@ -156,8 +187,8 @@ bool pruning(int board[9][9], int &steps, int &backtracks) {
  * @param steps The running total of steps used to solve the puzzle
  * @param backtracks The running total of backtracks used when solving the puzzle
 */
-bool forwardChecking(int board[9][9], int &steps, int &backtracks) {
-    pair<int, int> emptyCell = findEmpty(board);
+bool forwardChecking(int board[9][9], int &steps, int &backtracks, function<pair<int, int>(int[9][9])> nextEmpty) {
+    pair<int, int> emptyCell = nextEmpty(board);
     if (emptyCell == make_pair(-1, -1)) {
         return true; // If no empty cells remain, assume the board to be solved
     }
@@ -179,7 +210,7 @@ bool forwardChecking(int board[9][9], int &steps, int &backtracks) {
             backtracks += 1;
             continue;
         }
-        if (forwardChecking(board, steps, backtracks)) {
+        if (forwardChecking(board, steps, backtracks, nextEmpty)) {
             return true;
         }
         else {
@@ -222,14 +253,23 @@ int main() {
     int steps = 0;
     int backtracks = 0;
     int method;
+    int heuristic;
     cout << "Select an approach: \n [1] Backtracking with pruning \n [2] Backtracking with forward checking \n";
     cin >> method;
+    cout << "Select a heuristic: \n [1] None (first empty) \n [2] MRV (minimum remaining values) \n";
+    cin >> heuristic;
     auto start = chrono::steady_clock::now();
-    if (method == 1) {
-        bool solved = pruning(board, steps, backtracks);
+    if (method == 1 and heuristic == 1) {
+        solved = pruning(board, steps, backtracks, findEmpty);
     }
-    else if (method == 2) {
-        bool solved = forwardChecking(board, steps, backtracks);
+    else if (method == 1 and heuristic == 2) {
+        solved = pruning(board, steps, backtracks, findEmptyMRV);
+    }
+    else if (method == 2 and heuristic == 1) {
+        solved = forwardChecking(board, steps, backtracks, findEmpty);
+    }
+    else if (method == 2 and heuristic == 2) {
+        solved = forwardChecking(board, steps, backtracks, findEmptyMRV);
     }
     auto end = chrono::steady_clock::now();
     auto elapsed_ms = chrono::duration_cast<chrono::milliseconds>(end - start).count();
