@@ -177,11 +177,7 @@ pair<int, int> findEmptyMRV(int board[9][9]) {
                 continue;
             }
             vector<int> validNums;
-            for (int k = 1; k < 10; k++) { // Get a list of all possible valid values at the current empty cell
-                if (isValid(board, i, j, k)) {
-                    validNums.push_back(k);
-                }
-            }
+            findValid(board, i, j, validNums);
             if (validNums.size() < highest) {
                 highest = validNums.size();
                 cell = {i, j};
@@ -309,11 +305,14 @@ void printBoard(int board[9][9]) {
     }
 }
 
+/**
+ * Main function that handles the CLI and other function calls
+ */
 int main() {
     int board[9][9] = {};
     bool solved = false;
     string fileName;
-    cout << "Enter file name: ";
+    cout << "Enter sudoku puzzle file name: ";
     cin >> fileName;
     readPuzzle("puzzles/" + fileName, board);
     int steps = 0;
@@ -327,7 +326,7 @@ int main() {
     cin >> heuristic;
     cout << "Select value ordering heuristic: \n [1] Basic (no ordering) \n [2] LCV (least constraining value) \n";
     cin >> valueOrder;
-    auto start = chrono::steady_clock::now();
+    auto start = chrono::steady_clock::now(); // Begin tracking runtime
     if (method == 1 and heuristic == 1 and valueOrder == 1) {
         solved = pruning(board, steps, backtracks, findEmpty, findValid);
     }
@@ -352,8 +351,8 @@ int main() {
     else if (method == 2 and heuristic == 2 and valueOrder == 2) {
         solved = forwardChecking(board, steps, backtracks, findEmptyMRV, findValidLCV);
     }
-    auto end = chrono::steady_clock::now();
-    auto elapsed_ms = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+    auto end = chrono::steady_clock::now(); // Finish tracking runtime
+    auto elapsed_ms = chrono::duration_cast<chrono::milliseconds>(end - start).count(); // Calculate runtime
     if (solved) {
         cout << "Solved Board:\n";
         printBoard(board);
