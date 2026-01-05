@@ -2,13 +2,14 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <queue>
 #include <chrono>
 using namespace std;
 
 /** 
  * Reads a Sudoku puzzle from a file and populates a 9x9 board, where:
- *  - Digits 1-9 represent filled cells
- *  - 0s or spaces represent blank cells
+ * Digits 1-9 represent filled squares
+ * 0s or spaces represent blank squares
  * @param fname The name/path of the file containing the puzzle
  * @param board The 9x9 puzzle board
 */
@@ -61,8 +62,8 @@ bool isValid(int board[9][9], int row, int col, int value) {
         }
     }
 
-    int boxRow = (row / 3) * 3; // Calculates the row of the top left cell of the sub-square containing (row, col)
-    int boxCol = (col / 3) * 3; // Calculates the column of the top left cell of the sub-square containing (row, col)
+    int boxRow = (row / 3) * 3; // Calculates the row of the top left square of the subsquare containing (row, col)
+    int boxCol = (col / 3) * 3; // Calculates the column of the top left square of the subsquare containing (row, col)
 
     for (int r = boxRow; r < boxRow + 3; r++) {
         for (int c = boxCol; c < boxCol + 3; c++) {
@@ -77,12 +78,12 @@ bool isValid(int board[9][9], int row, int col, int value) {
 /** 
  * Iterates through values 1-9, and checks if each value is valid at the given row and column, updating the list of valid values as it goes
  * @param board The 9x9 puzzle board
- * @param row The row of the cell being checked
- * @param col The column of the cell being checked
+ * @param row The row of the square being checked
+ * @param col The column of the square being checked
  * @param validNums Pointer to the list of valid values
 */
 void findValid(int board[9][9], int row, int col, vector<int> &validNums) {
-    for (int i = 1; i < 10; i++) { // Get a list of all possible valid values at the current empty cell
+    for (int i = 1; i < 10; i++) { // Get a list of all possible valid values at the current empty square
         if (isValid(board, row, col, i)) {
             validNums.push_back(i);
         }
@@ -90,11 +91,11 @@ void findValid(int board[9][9], int row, int col, vector<int> &validNums) {
 }
 
 /** 
- * Iterates through values 1-9 and counts the number of constraints removed for each cell in the given cell's row, column and subsqaure for each value
+ * Iterates through values 1-9 and counts the number of constraints removed for each square in the given square's row, column and subsqaure for each value
  * The list of valid values is then updated with each valid value, ordered from the least constraining to the highest constraining
  * @param board The 9x9 puzzle board
- * @param row The row of the cell being checked
- * @param col The column of the cell being checked
+ * @param row The row of the square being checked
+ * @param col The column of the square being checked
  * @param validNums Pointer to the list of valid values
 */
 void findValidLCV(int board[9][9], int row, int col, vector<int> &validNums) {
@@ -122,8 +123,8 @@ void findValidLCV(int board[9][9], int row, int col, vector<int> &validNums) {
                 }
             }
         }
-        int boxRow = (row / 3) * 3; // Calculates the row of the top left cell of the sub-square containing (row, col)
-        int boxCol = (col / 3) * 3; // Calculates the column of the top left cell of the sub-square containing (row, col)
+        int boxRow = (row / 3) * 3; // Calculates the row of the top left square of the subsquare containing (row, col)
+        int boxCol = (col / 3) * 3; // Calculates the column of the top left square of the subsquare containing (row, col)
         for (int r = boxRow; r < boxRow + 3; r++) { // Count constraints within each subsquare
             for (int c = boxCol; c < boxCol + 3; c++) {
                 if (board[r][c] == 0 && (r != row || c != col)) {
@@ -148,8 +149,96 @@ void findValidLCV(int board[9][9], int row, int col, vector<int> &validNums) {
     }
 }
 
+/**
+ * Initialising a list of initial domains for each square, by adding the square's set value or, if empty, all its potential values to the list
+ * @param board The 9x9 puzzle board
+ * @param domains The 9x9 list of domains
+ */
+void initDomains(int board[9][9], vector<int> domains[9][9]) {
+    for (int i = 0; i < 9; i++) {
+        for (int j = 0; j < 9; j++) {
+            domains[i][j].clear(); // Clear any previously set domains
+            if (board[i][j] != 0) {
+                domains[i][j].push_back(board[i][j]); // Limit preset squares' domains to their preset value
+                continue;
+            }
+            for (int k = 1; k <= 9; k++) {
+                if (isValid(board, i, j, k)) {
+                    domains[i][j].push_back(k); // Iteratively add all valid values to the domain
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Gets all the related squares (within the same row, column or 3x3 subsquare) for a given square at row, col and updates the related list with their positions
+ * Filters out duplicates potentially added when searching for related squares within a row/column while searching for related squares within a 3x3 subsquare
+ * @param row The row of the square
+ * @param col The column of the square
+ * @param related Pointer to the list of related squares
+ */
+void getRelated(int row, int col, vector<pair<int, int>> &related) {
+    for (int i = 0; i < 9; i++) {
+        if (i != col) {
+            related.push_back({row, i}); // Get all squares within the same row
+        }
+        if (i != row) {
+            related.push_back({i, col}); // Get all squares within the same column
+        }
+    }
+    int boxRow = (row / 3) * 3; // Calculates the row of the top left square of the subsquare containing (row, col)
+    int boxCol = (col / 3) * 3; // Calculates the column of the top left square of the subsquare containing (row, col)
+    for (int i = boxRow; i < boxRow + 3; i++) {
+        for (int j = boxCol; j < boxCol + 3; j++) {
+            if (i == row && j == col) {
+                continue;
+            }
+            bool duplicate = false;
+            for (auto &square : related) {
+                if (square.first == i && square.second == j) {
+                    duplicate = true; // Avoid adding any duplicates previously added when searching row and column
+                    break;
+                }
+            }
+            if (!duplicate) {
+                related.push_back({i, j}); // Get all squares within the same subsquare
+            }
+        }
+    }
+}
+
+/**
+ * Updates the domain of squarei by removing any values of the domain where that value is the only value within the domain of squarej
+ * Returns true if the domain was updated and false otherwise
+ * @param domains The 9x9 list of domains
+ * @param squarei The position of the square's domain that's being updated
+ * @param squarej the position of the square that squarei is being checked against
+ */
+bool update(vector<int> domains[9][9], pair<int, int> squarei, pair<int, int> squarej) {
+    bool updated = false;
+    vector<int> newDomain;
+    for (int i : domains[squarei.first][squarei.second]) { // For each value in squarei's domain
+        bool valid = false;
+        for (int j : domains[squarej.first][squarej.second]) { // For each value in squarej's domain
+            if (i != j) {
+                valid = true; // The value within squarei's domain is valid if it isn't the only value within squarej's domain
+                break;
+            }
+        }
+        if (valid) {
+            newDomain.push_back(i);
+        }
+        else {
+            updated = true;
+        }
+    }
+    domains[squarei.first][squarei.second] = newDomain; // Update squarei's domain
+    return updated;
+}
+
 /** 
- * Iterates through the board, checking for an empty square (0) and returning its location if found
+ * Iterates through the board, checking for an empty square (represented by 0) and returning its location if found
  * @param board The 9x9 puzzle board
 */
 pair<int, int> findEmpty(int board[9][9]) {
@@ -164,34 +253,34 @@ pair<int, int> findEmpty(int board[9][9]) {
 }
 
 /**
- * Iterates through the board, and uses the Minimum Remaining Value heuristic to determine the next empty cell to be filled
- * The function iterates through empty cells on the board, and returns the position of the one with the least remaining valid values
+ * Iterates through the board, and uses the Minimum Remaining Value heuristic to determine the next empty square to be filled
+ * The function iterates through empty squares on the board, and returns the position of the one with the least remaining valid values
  * @param board The 9x9 puzzle board
  */
 pair<int, int> findEmptyMRV(int board[9][9]) {
     int highest = 10; // Default best number of possible values +1 for comparisons
-    pair<int, int> cell = {-1, -1};
+    pair<int, int> square = {-1, -1};
     for (int i = 0; i < 9; i++) {
         for (int j = 0; j < 9; j++) {
-            if (board[i][j] != 0) { // Skip filled cells
+            if (board[i][j] != 0) { // Skip filled squares
                 continue;
             }
             vector<int> validNums;
             findValid(board, i, j, validNums);
             if (validNums.size() < highest) {
                 highest = validNums.size();
-                cell = {i, j};
+                square = {i, j};
                 if (highest == 0 or highest == 1) { // Exit early if a dead end or the lowest possible amount of valid values is found
-                    return cell;
+                    return square;
                 }
             }
         }
     }
-    return cell;
+    return square;
 }
 
 /**
- * Checks if any empty cells on the board have no possible remaining values
+ * Checks if any empty squares on the board have no possible remaining values
  * @param board The 9x9 puzzle board
  */
 bool hasFuture(int board[9][9]) {
@@ -220,14 +309,16 @@ bool hasFuture(int board[9][9]) {
  * @param board The 9x9 puzzle board
  * @param steps The running total of steps used to solve the puzzle
  * @param backtracks The running total of backtracks used when solving the puzzle
+ * @param nextEmpty The function used to find the next empty square, decided by user input
+ * @param validNumFinder The function used to find and order the valid numbers that make up a square's domain
 */
 bool pruning(int board[9][9], int &steps, int &backtracks, function<pair<int, int>(int[9][9])> nextEmpty, function<void(int[9][9], int, int, vector<int>&)> validNumFinder) {
-    pair<int, int> emptyCell = nextEmpty(board);
-    if (emptyCell == make_pair(-1, -1)) {
-        return true; // If no empty cells remain, assume the board to be solved
+    pair<int, int> emptysquare = nextEmpty(board);
+    if (emptysquare == make_pair(-1, -1)) {
+        return true; // If no empty squares remain, assume the board to be solved
     }
-    int row = emptyCell.first;
-    int col = emptyCell.second;
+    int row = emptysquare.first;
+    int col = emptysquare.second;
     steps += 1;
 
     vector<int> validNums;
@@ -247,19 +338,21 @@ bool pruning(int board[9][9], int &steps, int &backtracks, function<pair<int, in
 }
 
 /**
- * Recursively solves the sudoku using forward checking, by placing a valid value within in a cell then checking if doing so elimates all valid values for any other cells
+ * Recursively solves the sudoku using forward checking, by placing a valid value within in a square then checking if doing so elimates all valid values for any other squares
  * Returns true once the board is solved, and returns false if the board is unsolvable.
  * @param board The 9x9 puzzle board
  * @param steps The running total of steps used to solve the puzzle
  * @param backtracks The running total of backtracks used when solving the puzzle
+ * @param nextEmpty The function used to find the next empty square, decided by user input
+ * @param validNumFinder The function used to find and order the valid numbers that make up a square's domain
 */
 bool forwardChecking(int board[9][9], int &steps, int &backtracks, function<pair<int, int>(int[9][9])> nextEmpty, function<void(int[9][9], int, int, vector<int>&)> validNumFinder) {
-    pair<int, int> emptyCell = nextEmpty(board);
-    if (emptyCell == make_pair(-1, -1)) {
-        return true; // If no empty cells remain, assume the board to be solved
+    pair<int, int> emptysquare = nextEmpty(board);
+    if (emptysquare == make_pair(-1, -1)) {
+        return true; // If no empty squares remain, assume the board to be solved
     }
-    int row = emptyCell.first;
-    int col = emptyCell.second;
+    int row = emptysquare.first;
+    int col = emptysquare.second;
     steps += 1;
 
     vector<int> validNums;
@@ -267,7 +360,7 @@ bool forwardChecking(int board[9][9], int &steps, int &backtracks, function<pair
 
     for(int i = 0; i < validNums.size(); i++) { // Recursively place valid numbers into empty positions until the board is solved
         board[row][col] = validNums[i];
-        if (!hasFuture(board)) { // If placing a value into this cell eliminates all possible values for any other cell, backtrack
+        if (!hasFuture(board)) { // If placing a value into this square eliminates all possible values for any other square, backtrack
             board[row][col] = 0;
             backtracks += 1;
             continue;
@@ -306,7 +399,7 @@ void printBoard(int board[9][9]) {
 }
 
 /**
- * Main function that handles the CLI and other function calls
+ * Main function that handles the CLI and the calling of the chosen solve method
  */
 int main() {
     int board[9][9] = {};
@@ -322,7 +415,7 @@ int main() {
     int valueOrder;
     cout << "Select an approach: \n [1] Backtracking with pruning \n [2] Backtracking with forward checking \n";
     cin >> method;
-    cout << "Select a heuristic: \n [1] None (first empty) \n [2] MRV (minimum remaining values) \n [3] LCV (least constraining value) \n [4] MRV + LCV";
+    cout << "Select heuristics: \n [1] None (first empty) \n [2] MRV (minimum remaining values) \n [3] LCV (least constraining value) \n [4] MRV + LCV";
     cin >> heuristic;
     cout << "Select value ordering heuristic: \n [1] Basic (no ordering) \n [2] LCV (least constraining value) \n";
     cin >> valueOrder;
