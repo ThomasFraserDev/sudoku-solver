@@ -237,6 +237,61 @@ bool update(vector<int> domains[9][9], pair<int, int> squarei, pair<int, int> sq
     return updated;
 }
 
+/**
+ * Applies the AC-3 algorithm to enforce arc consistency on all squares, by generating arcs and updating domains
+ * Returns false if an inconsistency is detected, and true otherwise
+ * @param domains The 9x9 list of domains
+ */
+bool ac3(vector<int> domains[9][9]) {
+    queue<pair<pair<int, int>, pair<int, int>>> arcs;
+    vector<pair<int, int>> related;
+    for (int i = 0; i < 9; i ++) {
+        for (int j = 0; j < 9; j++) {
+            getRelated(i, j, related); // Get related squares for each square
+            for(auto &square : related) {
+                arcs.push({{i, j}, square}); // Add arcs for each square x related square
+            }
+            related.clear();
+        }
+    }
+
+    while (!arcs.empty()) {
+        auto arc = arcs.front();
+        arcs.pop();
+        auto squarei = arc.first;
+        auto squarej = arc.second;
+        if (update(domains, squarei, squarej)) {
+            if (domains[squarei.first][squarei.second].empty()) {
+                return false; // If the domain is empty, there is an inconsistency
+            }
+            related.clear();
+            getRelated(squarei.first, squarei.second, related);
+            for (auto &square : related) {
+                if (square.first == squarei.first && square.second == squarei.second) {
+                    continue;
+                }
+                arcs.push({square, squarei}); // Readd arcs with updated domains
+            }
+        }
+    }
+    return true;
+}
+
+/**
+ * Fills squares with single value domains with their value
+ * @param board The 9x9 puzzle board
+ * @param domains The 9x9 list of domains
+ */
+void fillSingles(int board[9][9], vector<int> domains[9][9]) {
+    for (int i = 0; i < 9; i++) {
+        for (int j = 0; j < 9; j++) {
+            if (board[i][j] == 0 && domains[i][j].size() == 1) {
+                board[i][j] = domains[i][j][0];
+            }
+        }
+    }
+}
+
 /** 
  * Iterates through the board, checking for an empty square (represented by 0) and returning its location if found
  * @param board The 9x9 puzzle board
@@ -413,12 +468,24 @@ int main() {
     int method;
     int heuristic;
     int valueOrder;
+    int useAC3;
     cout << "Select an approach: \n [1] Backtracking with pruning \n [2] Backtracking with forward checking \n";
     cin >> method;
-    cout << "Select heuristics: \n [1] None (first empty) \n [2] MRV (minimum remaining values) \n [3] LCV (least constraining value) \n [4] MRV + LCV";
+    cout << "Select empty cell finding heuristic: \n [1] None (first empty) \n [2] MRV (minimum remaining values) \n";
     cin >> heuristic;
     cout << "Select value ordering heuristic: \n [1] Basic (no ordering) \n [2] LCV (least constraining value) \n";
     cin >> valueOrder;
+    cout << "Apply AC-3 preprocessing? \n [1] Yes \n [2] No \n";
+    cin >> useAC3;
+    if(useAC3 == 1) {
+        vector<int> domains[9][9];
+        initDomains(board, domains);
+        if (!ac3(domains)) {
+            cout << "No solution exists for the entered sudoku (AC-3 detected an inconsistency).";
+            return 0;
+        }
+        fillSingles(board, domains);
+    }
     auto start = chrono::steady_clock::now(); // Begin tracking runtime
     if (method == 1 and heuristic == 1 and valueOrder == 1) {
         solved = pruning(board, steps, backtracks, findEmpty, findValid);
