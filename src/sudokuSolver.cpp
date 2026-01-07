@@ -57,7 +57,7 @@ void readPuzzle(string fname, int board[9][9]) {
 */
 bool isValid(int board[9][9], int row, int col, int value) {
     for (int i=0; i < 9; i++) {
-        if (value == board[i][col] or value == board[row][i]) { // If the value is already within the position's row or column
+        if (value == board[i][col] || value == board[row][i]) { // If the value is already within the position's row or column
             return false;
         }
     }
@@ -391,7 +391,7 @@ pair<int, int> findEmptyMRV(int board[9][9]) {
             if (validNums.size() < smallest) {
                 smallest = validNums.size();
                 square = {i, j};
-                if (smallest == 0 or smallest == 1) { // Exit early if a dead end or the lowest possible amount of valid values is found
+                if (smallest == 0 || smallest == 1) { // Exit early if a dead end or the lowest possible amount of valid values is found
                     return square;
                 }
             }
@@ -417,7 +417,7 @@ pair<int, int> findEmptyMRVMAC(int board[9][9], vector<int> domains[9][9]) {
             if (domainSize < smallest) {
                 smallest = domainSize;
                 square = {i, j};
-                if (smallest == 0 or smallest == 1) { // Exit early if a dead end or the lowest possible amount of valid values is found
+                if (smallest == 0 || smallest == 1) { // Exit early if a dead end or the lowest possible amount of valid values is found
                     return square;
                 }
             }
@@ -591,91 +591,189 @@ void printBoard(int board[9][9]) {
         cout << "\n";
     }
 }
+/** 
+ * Stores the outcome of a solver run, including the final board state and metrics
+ * @param board The 9x9 solved (or attempted) puzzle board
+ * @param solved Whether the solver found a valid solution
+ * @param steps The total number of recursion steps performed
+ * @param backtracks The total number of backtracks performed
+ * @param runtime The elapsed solving time in milliseconds
+ */
+struct SolveResult {
+    int board[9][9];
+    bool solved;
+    int steps;
+    int backtracks;
+    int runtime;
+};
 
 /**
- * Main function that handles the CLI and the calling of the chosen solve method
+ * Solves a given sudoku board. Gets input from the user detailing which solve method, empty cell finding heuristic, value ordering heuristic and whether or not they want to use AC-3 preprocessing
+ * The function returns a SolveResult, containing the details of the performed solve
+ * @param board The 9x9 puzzle board
  */
-int main() {
-    int board[9][9] = {};
+SolveResult solve(int board[9][9]) {
     bool solved = false;
-    string fileName;
-    cout << "Enter sudoku puzzle file name: ";
-    cin >> fileName;
-    readPuzzle("puzzles/" + fileName, board);
     int steps = 0;
     int backtracks = 0;
     int method;
-    int heuristic;
+    int emptyFinder;
     int valueOrder;
     int useAC3;
     vector<int> domains[9][9];
     cout << "Select an approach: \n [1] Backtracking with pruning \n [2] Backtracking with forward checking \n [3] Backtracking with pruning and MAC (Maintained Arc Consistency) \n";
     cin >> method;
     cout << "Select empty cell finding heuristic: \n [1] None (first empty) \n [2] MRV (Minimum Remaining Values) \n";
-    cin >> heuristic;
+    cin >> emptyFinder;
     cout << "Select value ordering heuristic: \n [1] Basic (no ordering) \n [2] LCV (Least Constraining Value) \n";
     cin >> valueOrder;
-    if (method < 3) {
+    if (method < 3) { // If MAC isn't being used
         cout << "Apply AC-3 preprocessing? \n [1] Yes \n [2] No \n";
         cin >> useAC3;
     }
-    if(useAC3 == 1 or method == 3) {
+    if(useAC3 == 1 || method == 3) {
         initDomains(board, domains);
         if (!ac3(domains)) {
             cout << "No solution exists for the entered sudoku (AC-3 detected an inconsistency).";
-            return 0;
+            return {-1, -1, -1};
         }
         fillSingles(board, domains);
     }
     auto start = chrono::steady_clock::now(); // Begin tracking runtime
-    if (method == 1 and heuristic == 1 and valueOrder == 1) {
+    if (method == 1 and emptyFinder == 1 and valueOrder == 1) {
         solved = pruning(board, steps, backtracks, findEmpty, findValid);
     }
-    else if (method == 1 and heuristic == 1 and valueOrder == 2) {
+    else if (method == 1 and emptyFinder == 1 and valueOrder == 2) {
         solved = pruning(board, steps, backtracks, findEmpty, findValidLCV);
     }
-    else if (method == 1 and heuristic == 2 and valueOrder == 1) {
+    else if (method == 1 and emptyFinder == 2 and valueOrder == 1) {
         solved = pruning(board, steps, backtracks, findEmptyMRV, findValid);
     }
-    else if (method == 1 and heuristic == 2 and valueOrder == 2) {
+    else if (method == 1 and emptyFinder == 2 and valueOrder == 2) {
         solved = pruning(board, steps, backtracks, findEmptyMRV, findValidLCV);
     }
-    else if (method == 2 and heuristic == 1 and valueOrder == 1) {
+    else if (method == 2 and emptyFinder == 1 and valueOrder == 1) {
         solved = forwardChecking(board, steps, backtracks, findEmpty, findValid);
     }
-    else if (method == 2 and heuristic == 1 and valueOrder == 2) {
+    else if (method == 2 and emptyFinder == 1 and valueOrder == 2) {
         solved = forwardChecking(board, steps, backtracks, findEmpty, findValidLCV);
     }
-    else if (method == 2 and heuristic == 2 and valueOrder == 1) {
+    else if (method == 2 and emptyFinder == 2 and valueOrder == 1) {
         solved = forwardChecking(board, steps, backtracks, findEmptyMRV, findValid);
     }
-    else if (method == 2 and heuristic == 2 and valueOrder == 2) {
+    else if (method == 2 and emptyFinder == 2 and valueOrder == 2) {
         solved = forwardChecking(board, steps, backtracks, findEmptyMRV, findValidLCV);
     }
-    else if (method == 3 and heuristic == 1 and valueOrder == 1) {
+    else if (method == 3 and emptyFinder == 1 and valueOrder == 1) {
         solved = pruningMAC(board, domains, steps, backtracks, findEmptyMAC, findValidMAC);
     }
-    else if (method == 3 and heuristic == 1 and valueOrder == 2) {
+    else if (method == 3 and emptyFinder == 1 and valueOrder == 2) {
         solved = pruningMAC(board, domains, steps, backtracks, findEmptyMAC, findValidLCVMAC);
     }
-    else if (method == 3 and heuristic == 2 and valueOrder == 1) {
+    else if (method == 3 and emptyFinder == 2 and valueOrder == 1) {
         solved = pruningMAC(board, domains, steps, backtracks, findEmptyMRVMAC, findValidMAC);
     }
-    else if (method == 3 and heuristic == 2 and valueOrder == 2) {
+    else if (method == 3 and emptyFinder == 2 and valueOrder == 2) {
         solved = pruningMAC(board, domains, steps, backtracks, findEmptyMRVMAC, findValidLCVMAC);
     }
     auto end = chrono::steady_clock::now(); // Finish tracking runtime
-    auto elapsed_ms = chrono::duration_cast<chrono::milliseconds>(end - start).count(); // Calculate runtime
-    if (solved) {
-        cout << "Solved Board:\n";
-        printBoard(board);
-        cout << "Steps: " << steps << "\n";
-        cout << "Backtracks: " << backtracks << "\n";
-        cout << "Runtime: " << elapsed_ms << " ms\n";
+    auto runtime = chrono::duration_cast<chrono::milliseconds>(end - start).count(); // Calculate runtime
+    SolveResult result{};
+    for (int r = 0; r < 9; r++)
+        for (int c = 0; c < 9; c++)
+            result.board[r][c] = board[r][c];
+    result.solved = solved;
+    result.steps = steps;
+    result.backtracks = backtracks;
+    result.runtime = runtime;
+    return result;
+}
+/**
+ * Compares multiple solvers, determined by the user. Each solver's stats are then printed, along with the least steps, backtracks and fastest runtime
+ * @param board The 9x9 puzzle board
+ */
+void comparison(int board[9][9]) {
+    int solvers;
+    cout << "Enter how many solvers you would like to run: \n";
+    cin >> solvers;
+    vector<SolveResult> results;
+    results.reserve(solvers);
+    for (int i = 0; i < solvers; i++) {
+        int boardCopy[9][9];
+        for (int r = 0; r < 9; r++) {
+            for (int c = 0; c < 9; c++) {
+                boardCopy[r][c] = board[r][c];
+            }
+        }
+        cout << "----- Solver " << (i +1) << " ----- \n";
+        results[i] = solve(boardCopy);
     }
-    else {
-        cout << "No solution exists for the entered sudoku.\n";
-        cout << "Runtime: " << elapsed_ms << "ms\n";
+
+    pair<int, SolveResult> leastSteps = {0, results[0]};
+    pair<int, SolveResult> leastBacktracks = {0, results[0]};
+    pair<int, SolveResult> fastest = {0, results[0]};
+
+    for (int i = 0; i < solvers; i++) {
+        cout << "----- Solver " << (i +1) << " ----- \n";
+        if (results[i].solved) {
+            cout << "Solved Board:\n";
+            printBoard(results[i].board);
+            cout << "Steps: " << results[i].steps << "\n";
+            if (results[i].steps < leastSteps.second.steps) {
+                leastSteps.first = (i +1);
+                leastSteps.second = results[i];
+            }
+            cout << "Backtracks: " << results[i].backtracks << "\n";
+            if (results[i].backtracks < leastBacktracks.second.backtracks) {
+                leastBacktracks.first = (i +1);
+                leastBacktracks.second = results[i];
+            }
+            cout << "Runtime: " << results[i].runtime << "ms \n";
+            if (results[i].runtime < fastest.second.runtime) {
+                fastest.first = (i +1);
+                fastest.second = results[i];
+            }
+        }
+        else {
+            cout << "No solution exists for the entered sudoku.\n";
+            break;
+        }
+    }
+    cout << "---------- \n";
+    cout << "Solver that used the least amount of steps: " << leastSteps.first << " (" << leastSteps.second.steps << " steps)\n";
+    cout << "Solver that backtracked the least: " << leastBacktracks.first << " (" << leastBacktracks.second.backtracks << " backtracks)\n";
+    cout << "Solver that solved the puzzle the fastest: " << fastest.first << " (" << fastest.second.runtime << "ms)\n";
+}
+
+/**
+ * Main function that takes input for the name of the sudoku puzzle file and whether single solve or comparison solve is to be used
+ * If single solve is used, the function will also print the solver's metrics
+ */
+int main() {
+    int board[9][9] = {};
+    string fileName;
+    int mode;
+    cout << "Enter sudoku puzzle file name: \n";
+    cin >> fileName;
+    readPuzzle("puzzles/" + fileName, board);
+    cout << "Choose a mode: \n [1] Solve a sudoku using a solver \n [2] Compare multiple solvers \n";
+    cin >> mode;
+    if (mode == 1) {
+        SolveResult result{};
+        result = solve(board);
+        if (result.solved) {
+            cout << "Solved Board:\n";
+            printBoard(result.board);
+            cout << "Steps: " << result.steps << "\n";
+            cout << "Backtracks: " << result.backtracks << "\n";
+            cout << "Runtime: " << result.runtime << "ms\n";
+        }
+        else {
+            cout << "No solution exists for the entered sudoku.\n";
+        }
+    }
+    else if (mode == 2) {
+        comparison(board);
     }
     return 0;
 }
