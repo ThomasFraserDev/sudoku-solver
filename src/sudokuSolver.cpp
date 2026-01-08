@@ -616,10 +616,11 @@ SolveResult solve(int board[9][9]) {
     bool solved = false;
     int steps = 0;
     int backtracks = 0;
-    int method;
-    int emptyFinder;
-    int valueOrder;
-    int useAC3;
+    int method; // Selected option for solving method
+    int emptyFinder; // Selected option for empty finding heuristic
+    int valueOrder; // Selected option for value orderingheuristic
+    int useAC3; // Selected option for whether or not to use AC-3 preprocessing
+
     vector<int> domains[9][9];
     cout << "Select an approach: \n [1] Backtracking with pruning \n [2] Backtracking with forward checking \n [3] Backtracking with pruning and MAC (Maintained Arc Consistency) \n";
     cin >> method;
@@ -631,7 +632,8 @@ SolveResult solve(int board[9][9]) {
         cout << "Apply AC-3 preprocessing? \n [1] Yes \n [2] No \n";
         cin >> useAC3;
     }
-    if(useAC3 == 1 || method == 3) {
+
+    if(useAC3 == 1 || method == 3) { // If AC-3 preprocessing is enabled or MAC was chosen
         initDomains(board, domains);
         if (!ac3(domains)) {
             cout << "No solution exists for the entered sudoku (AC-3 detected an inconsistency).";
@@ -639,6 +641,7 @@ SolveResult solve(int board[9][9]) {
         }
         fillSingles(board, domains);
     }
+
     auto start = chrono::steady_clock::now(); // Begin tracking runtime
     if (method == 1 and emptyFinder == 1 and valueOrder == 1) {
         solved = pruning(board, steps, backtracks, findEmpty, findValid);
@@ -678,6 +681,7 @@ SolveResult solve(int board[9][9]) {
     }
     auto end = chrono::steady_clock::now(); // Finish tracking runtime
     auto runtime = chrono::duration_cast<chrono::milliseconds>(end - start).count(); // Calculate runtime
+
     SolveResult result{};
     for (int r = 0; r < 9; r++)
         for (int c = 0; c < 9; c++)
@@ -689,7 +693,7 @@ SolveResult solve(int board[9][9]) {
     return result;
 }
 /**
- * Compares multiple solvers, determined by the user. Each solver's stats are then printed, along with the least steps, backtracks and fastest runtime
+ * Compares multiple solvers, determined by the user. Each solver's stats are then printed, along with the least/most steps, backtracks and the slowest/fastest runtime, with comparisons between them
  * @param board The 9x9 puzzle board
  */
 void comparison(int board[9][9]) {
@@ -697,21 +701,25 @@ void comparison(int board[9][9]) {
     cout << "Enter how many solvers you would like to run: \n";
     cin >> solvers;
     vector<SolveResult> results;
-    results.reserve(solvers);
+    results.reserve(solvers); // Reserve space for x amount of results
+
     for (int i = 0; i < solvers; i++) {
         int boardCopy[9][9];
         for (int r = 0; r < 9; r++) {
             for (int c = 0; c < 9; c++) {
-                boardCopy[r][c] = board[r][c];
+                boardCopy[r][c] = board[r][c]; // Create a copy of the board each iteration to avoid modifying the original
             }
         }
         cout << "----- Solver " << (i +1) << " ----- \n";
-        results[i] = solve(boardCopy);
+        results.push_back(solve(boardCopy));
     }
 
-    pair<int, SolveResult> leastSteps = {0, results[0]};
-    pair<int, SolveResult> leastBacktracks = {0, results[0]};
-    pair<int, SolveResult> fastest = {0, results[0]};
+    pair<int, SolveResult> mostSteps = {1, results[0]}; // Pair of index and result with the least amount of steps used
+    pair<int, SolveResult> mostBacktracks = {1, results[0]}; // Pair of index and result with the least amount of backtracking
+    pair<int, SolveResult> slowest = {1, results[0]}; // Pair of index and result with the fastest runtime
+    pair<int, SolveResult> leastSteps = {1, results[0]}; // Pair of index and result with the least amount of steps used
+    pair<int, SolveResult> leastBacktracks = {1, results[0]}; // Pair of index and result with the least amount of backtracking
+    pair<int, SolveResult> fastest = {1, results[0]}; // Pair of index and result with the fastest runtime
 
     for (int i = 0; i < solvers; i++) {
         cout << "----- Solver " << (i +1) << " ----- \n";
@@ -719,18 +727,30 @@ void comparison(int board[9][9]) {
             cout << "Solved Board:\n";
             printBoard(results[i].board);
             cout << "Steps: " << results[i].steps << "\n";
-            if (results[i].steps < leastSteps.second.steps) {
-                leastSteps.first = (i +1);
+            if (results[i].steps > mostSteps.second.steps) {
+                mostSteps.first = (i + 1);
+                mostSteps.second = results[i];
+            }
+            else if (results[i].steps < leastSteps.second.steps) {
+                leastSteps.first = (i + 1);
                 leastSteps.second = results[i];
             }
             cout << "Backtracks: " << results[i].backtracks << "\n";
-            if (results[i].backtracks < leastBacktracks.second.backtracks) {
-                leastBacktracks.first = (i +1);
+            if (results[i].backtracks > mostBacktracks.second.backtracks) {
+                mostBacktracks.first = (i + 1);
+                mostBacktracks.second = results[i];
+            }
+            else if (results[i].backtracks < leastBacktracks.second.backtracks) {
+                leastBacktracks.first = (i + 1);
                 leastBacktracks.second = results[i];
             }
             cout << "Runtime: " << results[i].runtime << "ms \n";
-            if (results[i].runtime < fastest.second.runtime) {
-                fastest.first = (i +1);
+            if (results[i].runtime > slowest.second.runtime) {
+                slowest.first = (i + 1);
+                slowest.second = results[i];
+            }
+            else if (results[i].runtime < fastest.second.runtime) {
+                fastest.first = (i + 1);
                 fastest.second = results[i];
             }
         }
@@ -739,10 +759,25 @@ void comparison(int board[9][9]) {
             break;
         }
     }
-    cout << "---------- \n";
+
+    cout << "------------------- \n";
+    cout << "Solver that used the most amount of steps: " << mostSteps.first << " (" << mostSteps.second.steps << " steps)\n";
+    cout << "Solver that backtracked the most: " << mostBacktracks.first << " (" << mostBacktracks.second.backtracks << " backtracks)\n";
+    cout << "Solver that solved the puzzle the slowest: " << slowest.first << " (" << slowest.second.runtime << "ms)\n";
+
+    cout << "------------------- \n";
     cout << "Solver that used the least amount of steps: " << leastSteps.first << " (" << leastSteps.second.steps << " steps)\n";
     cout << "Solver that backtracked the least: " << leastBacktracks.first << " (" << leastBacktracks.second.backtracks << " backtracks)\n";
     cout << "Solver that solved the puzzle the fastest: " << fastest.first << " (" << fastest.second.runtime << "ms)\n";
+
+    double stepDiff = (static_cast<double>(slowest.second.steps) / static_cast<double>(fastest.second.steps));
+    double backtrackDiff = (static_cast<double>(slowest.second.backtracks) / static_cast<double>(fastest.second.backtracks));
+    double runtimeDiff = ((static_cast<double>((slowest.second.runtime)) - static_cast<double>(fastest.second.runtime)) / static_cast<double>(slowest.second.runtime)) * 100;
+
+    cout << "------------------- \n";
+    cout << "Solver " << leastSteps.first << " solved using " << stepDiff << "x fewer steps than solver " << mostSteps.first << "\n";
+    cout << "Solver " << leastBacktracks.first << " solved using " << backtrackDiff << "x fewer backtracks than solver " << mostBacktracks.first << "\n";
+    cout << "Solver " << fastest.first << " shortened solver " << slowest.first << "'s solving time by " << runtimeDiff << "%\n";
 }
 
 /**
@@ -756,7 +791,7 @@ int main() {
     cout << "Enter sudoku puzzle file name: \n";
     cin >> fileName;
     readPuzzle("puzzles/" + fileName, board);
-    cout << "Choose a mode: \n [1] Solve a sudoku using a solver \n [2] Compare multiple solvers \n";
+    cout << "Choose a mode: \n [1] Solve the puzzle using a solver \n [2] Compare multiple solvers solving the puzzle \n";
     cin >> mode;
     if (mode == 1) {
         SolveResult result{};
